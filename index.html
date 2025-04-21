@@ -62,9 +62,9 @@
             <p><strong>Instructions:</strong></p>
             <ul>
                 <li>Use a valid <strong>Bot Token</strong> from Discord Developer Portal.</li>
-                <li>Ensure the bot is in the server and has permission to send messages.</li>
+                <li>Ensure the bot is in the server and has <strong>Send Messages</strong> permission.</li>
                 <li>Host this file on a server (e.g., http-server, Netlify) to avoid CORS issues.</li>
-                <li>Check browser console (F12) for detailed errors.</li>
+                <li>Open browser console (F12) to view detailed errors.</li>
             </ul>
         </div>
         <input type="text" id="token" placeholder="Enter your Discord Bot Token" />
@@ -75,13 +75,34 @@
     </div>
 
     <script>
+        async function sendMessageWithRetry(url, options, retries = 3) {
+            for (let i = 0; i < retries; i++) {
+                try {
+                    console.log(`Attempt ${i + 1}: Sending request to ${url}`);
+                    const response = await fetch(url, options);
+                    console.log(`Response status: ${response.status}`);
+                    if (response.status === 429) {
+                        const error = await response.json();
+                        const retryAfter = (error.retry_after || 1) * 1000;
+                        console.warn(`Rate limited. Retrying after ${retryAfter}ms`);
+                        await new Promise(resolve => setTimeout(resolve, retryAfter));
+                        continue;
+                    }
+                    return response;
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed: ${error.message}`);
+                    if (i === retries - 1) throw error;
+                }
+            }
+        }
+
         async function sendMessage() {
             const token = document.getElementById('token').value.trim();
             const channelId = document.getElementById('channelId').value.trim();
             const message = document.getElementById('message').value.trim();
             const status = document.getElementById('status');
 
-            // Basic input validation
+            // Input validation
             if (!token || !channelId || !message) {
                 status.textContent = 'Please fill in all fields.';
                 status.style.color = 'red';
@@ -99,22 +120,17 @@
             }
 
             const url = `https://discord.com/api/v9/channels/${channelId}/messages`;
-            const payload = {
-                content: message
+            const options = {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bot ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: message })
             };
 
             try {
-                console.log('Sending request to:', url);
-                console.log('Payload:', payload);
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bot ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-
+                const response = await sendMessageWithRetry(url, options);
                 if (response.ok) {
                     status.textContent = 'Message sent successfully!';
                     status.style.color = 'green';
@@ -126,7 +142,7 @@
                     console.error('API Error:', error);
                 }
             } catch (error) {
-                status.textContent = `Network Error: ${error.message}. Ensure this is hosted on a server (not file://) and check your internet connection.`;
+                status.textContent = `Network Error: ${error.message}. Ensure this is hosted on a server (not file://), check internet, and verify token/permissions.`;
                 status.style.color = 'red';
                 console.error('Fetch Error:', error);
             }
