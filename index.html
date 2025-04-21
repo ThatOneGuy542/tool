@@ -1,0 +1,137 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Message Sender</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 400px;
+            text-align: center;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #7289da;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #677bc4;
+        }
+        #status {
+            margin-top: 10px;
+            color: #333;
+        }
+        .instructions {
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Discord Message Sender</h2>
+        <div class="instructions">
+            <p><strong>Instructions:</strong></p>
+            <ul>
+                <li>Use a valid <strong>Bot Token</strong> from Discord Developer Portal.</li>
+                <li>Ensure the bot is in the server and has permission to send messages.</li>
+                <li>Host this file on a server (e.g., http-server, Netlify) to avoid CORS issues.</li>
+                <li>Check browser console (F12) for detailed errors.</li>
+            </ul>
+        </div>
+        <input type="text" id="token" placeholder="Enter your Discord Bot Token" />
+        <input type="text" id="channelId" placeholder="Enter Channel ID" />
+        <textarea id="message" placeholder="Enter your message" rows="4"></textarea>
+        <button onclick="sendMessage()">Send Message</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function sendMessage() {
+            const token = document.getElementById('token').value.trim();
+            const channelId = document.getElementById('channelId').value.trim();
+            const message = document.getElementById('message').value.trim();
+            const status = document.getElementById('status');
+
+            // Basic input validation
+            if (!token || !channelId || !message) {
+                status.textContent = 'Please fill in all fields.';
+                status.style.color = 'red';
+                return;
+            }
+            if (!/^\d+$/.test(channelId)) {
+                status.textContent = 'Channel ID must be a numeric value.';
+                status.style.color = 'red';
+                return;
+            }
+            if (!token.match(/^[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+$/)) {
+                status.textContent = 'Invalid token format. Use a valid Bot Token.';
+                status.style.color = 'red';
+                return;
+            }
+
+            const url = `https://discord.com/api/v9/channels/${channelId}/messages`;
+            const payload = {
+                content: message
+            };
+
+            try {
+                console.log('Sending request to:', url);
+                console.log('Payload:', payload);
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bot ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    status.textContent = 'Message sent successfully!';
+                    status.style.color = 'green';
+                    document.getElementById('message').value = '';
+                } else {
+                    const error = await response.json();
+                    status.textContent = `Error: ${error.message || 'Failed to send message.'} (Code: ${response.status})`;
+                    status.style.color = 'red';
+                    console.error('API Error:', error);
+                }
+            } catch (error) {
+                status.textContent = `Network Error: ${error.message}. Ensure this is hosted on a server (not file://) and check your internet connection.`;
+                status.style.color = 'red';
+                console.error('Fetch Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+```
