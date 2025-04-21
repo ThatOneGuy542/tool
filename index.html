@@ -4,77 +4,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discord Message Sender (User Token)</title>
+    <title>Cyberpunk Discord Messenger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a, #2c0b0b);
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
+            overflow: hidden;
         }
         .container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            width: 400px;
+            background: rgba(20, 20, 20, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.7), inset 0 0 10px rgba(255, 0, 0, 0.3);
+            width: 450px;
             text-align: center;
+            animation: neonGlow 2s ease-in-out infinite alternate;
+            backdrop-filter: blur(5px);
         }
-        input, textarea {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
+        @keyframes neonGlow {
+            from { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5), inset 0 0 5px rgba(255, 0, 0, 0.2); }
+            to { box-shadow: 0 0 20px rgba(255, 0, 0, 0.8), inset 0 0 10px rgba(255, 0, 0, 0.4); }
         }
-        button {
-            background-color: #7289da;
-            color: white;
-            padding: 10px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            width: 100%;
-        }
-        button:hover {
-            background-color: #677bc4;
-        }
-        #status {
-            margin-top: 10px;
-            color: #333;
+        h2 {
+            color: #ff0000;
+            text-shadow: 0 0 10px #ff0000;
+            margin-bottom: 20px;
         }
         .instructions {
             font-size: 12px;
-            color: #555;
-            margin-bottom: 10px;
+            color: #b3b3b3;
+            margin-bottom: 20px;
             text-align: left;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ff0000;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            font-family: 'Orbitron', sans-serif;
+            transition: all 0.3s ease;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            box-shadow: 0 0 10px #ff0000;
+            border-color: #ff3333;
+        }
+        button {
+            background: #ff0000;
+            color: #fff;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background: #cc0000;
+            box-shadow: 0 0 15px #ff0000;
+        }
+        #status {
+            margin-top: 15px;
+            color: #fff;
+            text-shadow: 0 0 5px #ff0000;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        #status.show {
+            opacity: 1;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            opacity: 0.3;
         }
     </style>
 </head>
 <body>
+    <canvas id="particles"></canvas>
     <div class="container">
-        <h2>Discord Message Sender</h2>
+        <h2>Cyberpunk Messenger</h2>
         <div class="instructions">
             <p><strong>Instructions:</strong></p>
             <ul>
                 <li>Enter your <strong>user token</strong> (F12 > Applications > Token).</li>
-                <li>Ensure your account has <strong>Send Messages</strong> permission in the channel.</li>
-                <li>Host this file on a server (e.g., http-server, Netlify) to avoid CORS issues.</li>
-                <li>Open browser console (F12) for detailed errors.</li>
+                <li>Ensure your account has <strong>Send Messages</strong> permission.</li>
+                <li>Host on a server (e.g., http-server, Netlify) to avoid CORS issues.</li>
+                <li>Use intervals ≥1000ms to avoid rate limits.</li>
             </ul>
         </div>
         <input type="text" id="token" placeholder="Enter your Discord User Token" />
         <input type="text" id="channelId" placeholder="Enter Channel ID" />
         <textarea id="message" placeholder="Enter your message" rows="4"></textarea>
-        <button onclick="sendMessage()">Send Message</button>
+        <input type="number" id="messageCount" placeholder="Number of Messages (1-50)" min="1" max="50" />
+        <input type="number" id="interval" placeholder="Interval (ms, e.g., 1000)" min="500" />
+        <button onclick="sendMessages()">Send Messages</button>
         <div id="status"></div>
     </div>
 
     <script>
+        // Particle background
+        const canvas = document.getElementById('particles');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const particles = [];
+        const particleCount = 100;
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 1;
+                this.speedX = Math.random() * 0.5 - 0.25;
+                this.speedY = Math.random() * 0.5 - 0.25;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+            }
+            draw() {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < particleCount; i++) {
+            particles.push(new Particle());
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        // Message sending logic
         async function sendMessageWithRetry(url, options, retries = 3) {
             for (let i = 0; i < retries; i++) {
                 try {
@@ -96,26 +190,43 @@
             }
         }
 
-        async function sendMessage() {
+        async function sendMessages() {
             const token = document.getElementById('token').value.trim();
             const channelId = document.getElementById('channelId').value.trim();
             const message = document.getElementById('message').value.trim();
+            const messageCount = parseInt(document.getElementById('messageCount').value) || 1;
+            const interval = parseInt(document.getElementById('interval').value) || 1000;
             const status = document.getElementById('status');
 
             // Input validation
             if (!token || !channelId || !message) {
-                status.textContent = 'Please fill in all fields.';
+                status.textContent = 'Please fill in token, channel ID, and message.';
                 status.style.color = 'red';
+                status.classList.add('show');
                 return;
             }
             if (!/^\d+$/.test(channelId)) {
                 status.textContent = 'Channel ID must be a numeric value.';
                 status.style.color = 'red';
+                status.classList.add('show');
                 return;
             }
             if (!token.match(/^[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+\.[A-Za-z0-9._-]+$/)) {
                 status.textContent = 'Invalid token format. Ensure it’s a valid user token.';
                 status.style.color = 'red';
+                status.classList.add('show');
+                return;
+            }
+            if (messageCount < 1 || messageCount > 50) {
+                status.textContent = 'Message count must be between 1 and 50.';
+                status.style.color = 'red';
+                status.classList.add('show');
+                return;
+            }
+            if (interval < 500) {
+                status.textContent = 'Interval must be at least 500ms to avoid rate limits.';
+                status.style.color = 'red';
+                status.classList.add('show');
                 return;
             }
 
@@ -123,29 +234,42 @@
             const options = {
                 method: 'POST',
                 headers: {
-                    'Authorization': token, // User token uses plain Authorization
+                    'Authorization': token,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ content: message })
             };
 
-            try {
-                const response = await sendMessageWithRetry(url, options);
-                if (response.ok) {
-                    status.textContent = 'Message sent successfully!';
-                    status.style.color = 'green';
-                    document.getElementById('message').value = '';
-                } else {
-                    const error = await response.json();
-                    status.textContent = `Error: ${error.message || 'Failed to send message.'} (Code: ${response.status})`;
+            status.textContent = `Sending ${messageCount} messages...`;
+            status.style.color = '#fff';
+            status.classList.add('show');
+
+            for (let i = 0; i < messageCount; i++) {
+                try {
+                    const response = await sendMessageWithRetry(url, options);
+                    if (response.ok) {
+                        status.textContent = `Sent message ${i + 1}/${messageCount}`;
+                        status.style.color = '#00ff00';
+                    } else {
+                        const error = await response.json();
+                        status.textContent = `Error on message ${i + 1}: ${error.message || 'Failed to send.'} (Code: ${response.status})`;
+                        status.style.color = 'red';
+                        console.error('API Error:', error);
+                        break;
+                    }
+                    if (i < messageCount - 1) {
+                        await new Promise(resolve => setTimeout(resolve, interval));
+                    }
+                } catch (error) {
+                    status.textContent = `Network Error on message ${i + 1}: ${error.message}. Check hosting, internet, or token.`;
                     status.style.color = 'red';
-                    console.error('API Error:', error);
+                    console.error('Fetch Error:', error);
+                    break;
                 }
-            } catch (error) {
-                status.textContent = `Network Error: ${error.message}. Ensure this is hosted on a server (not file://), check internet, and verify token/permissions.`;
-                status.style.color = 'red';
-                console.error('Fetch Error:', error);
             }
+            if (status.textContent.includes('Error')) return;
+            status.textContent = `All ${messageCount} messages sent successfully!`;
+            status.style.color = '#00ff00';
         }
     </script>
 </body>
